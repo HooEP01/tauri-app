@@ -9,12 +9,23 @@ use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 // Window
 use tauri::WindowBuilder;
 
+// Multiple Windows
+
 // System Tray
 use tauri::{SystemTray, SystemTrayMenu};
 
 #[derive(Clone, serde::Serialize)]
 struct Payload {
     message: String,
+}
+
+#[tauri::command]
+async fn open_docs(handle: tauri::AppHandle) {
+  let docs_window = tauri::WindowBuilder::new(
+    &handle,
+    "external", /* the unique window label */
+    tauri::WindowUrl::External("https://tauri.app/".parse().unwrap())
+  ).build().unwrap();
 }
 
 fn main() {
@@ -32,7 +43,7 @@ fn main() {
     let tray_menu = SystemTrayMenu::new();
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .setup(|app| {
             let window = WindowBuilder::new(
                 app,
@@ -56,11 +67,38 @@ fn main() {
             let main_window = app.get_window("main").unwrap();
             let menu_handle = main_window.menu_handle();
             std::thread::spawn(move || {
-                // you can also `set_selected`, `set_enabled` and `set_native_image` (macOS only).
-                menu_handle.get_item("item_id").set_title("New title");
+                let _ = menu_handle.get_item("item_id").set_title("New title");
             });
 
+            // Mutliple Windows
+            let docs_window = tauri::WindowBuilder::new(
+                app,
+                "external_app", /* the unique window label */
+                tauri::WindowUrl::External("https://tauri.app/".parse().unwrap()),
+            )
+            .build()?;
+
+            let local_window = tauri::WindowBuilder::new(
+                app,
+                "local_app",
+                tauri::WindowUrl::App("index.html".into()),
+            )
+            .build()?;
+
+
+            let handle = app.handle();
+            std::thread::spawn(move || {
+              let local_window_2 = tauri::WindowBuilder::new(
+                &handle,
+                "local",
+                tauri::WindowUrl::App("index.html".into())
+              ).build();
+            });
+
+
             let app_ = app.handle();
+
+          
 
             // listen to the `event-name` (emitted on any window)
             app.listen_global("send-message", move |event| {
@@ -94,4 +132,21 @@ fn main() {
         .invoke_handler(tauri::generate_handler![])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    // let docs_window = tauri::WindowBuilder::new(
+    //     &app,
+    //     "external_outside", /* the unique window label */
+    //     tauri::WindowUrl::External("https://tauri.app/".parse().unwrap()),
+    // )
+    // .build()
+    // .expect("failed to build window");
+
+    // let local_window =
+    //     tauri::WindowBuilder::new(
+    //         &app, 
+    //         "local_outside", 
+    //         tauri::WindowUrl::App("index.html".into())
+    //     )
+    //         .build()
+    //         .expect("failed to build window");
 }

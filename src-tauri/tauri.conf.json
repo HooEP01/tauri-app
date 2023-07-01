@@ -22,7 +22,7 @@
         "open": true
       },
       "window": {
-        "all": false,
+        "all": true,
         "close": true,
         "hide": true,
         "show": true,
@@ -54,6 +54,16 @@
       "csp": null
     },
     "windows": [
+      {
+        "label": "external",
+        "title": "Tauri Docs",
+        "url": "https://tauri.app"
+      },
+      {
+        "label": "local",
+        "title": "Tauri",
+        "url": "index.html"
+      },
       {
         "fullscreen": false,
         "resizable": true,
