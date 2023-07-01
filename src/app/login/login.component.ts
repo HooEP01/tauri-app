@@ -13,10 +13,11 @@ import { WebviewWindow } from '@tauri-apps/api/window'
 })
 
 export class LoginComponent {
+
+
     greetingMessage = "";
 
     itemForm!: UntypedFormGroup;
-
 
 
     constructor(
@@ -26,11 +27,16 @@ export class LoginComponent {
 
     async ngOnInit() {
 
+        document.addEventListener('DOMContentLoaded', () => {
+            invoke('close_splashscreen')
+        })
+
+
         const webview = new WebviewWindow('local-unique', {
             url: 'https://github.com/tauri-apps/tauri',
         })
- 
-        
+
+
         webview.once('tauri://created', function () {
             console.log('created');
         })

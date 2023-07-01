@@ -20,12 +20,24 @@ struct Payload {
 }
 
 #[tauri::command]
-async fn open_docs(handle: tauri::AppHandle) {
-  let docs_window = tauri::WindowBuilder::new(
-    &handle,
-    "external", /* the unique window label */
-    tauri::WindowUrl::External("https://tauri.app/".parse().unwrap())
-  ).build().unwrap();
+fn open_docs(handle: tauri::AppHandle) {
+    let docs_window = tauri::WindowBuilder::new(
+        &handle,
+        "wonderland", /* the unique window label */
+        tauri::WindowUrl::External("https://tauri.app/".parse().unwrap()),
+    )
+    .build()
+    .unwrap();
+}
+
+#[tauri::command]
+async fn close_splashscreen(window: tauri::Window) {
+    // Close splashscreen
+    if let Some(splashscreen) = window.get_window("splashscreen") {
+        splashscreen.close().unwrap();
+    }
+    // Show main window
+    window.get_window("main").unwrap().show().unwrap();
 }
 
 fn main() {
@@ -43,7 +55,7 @@ fn main() {
     let tray_menu = SystemTrayMenu::new();
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
-    let app = tauri::Builder::default()
+    tauri::Builder::default()
         .setup(|app| {
             let window = WindowBuilder::new(
                 app,
@@ -67,7 +79,7 @@ fn main() {
             let main_window = app.get_window("main").unwrap();
             let menu_handle = main_window.menu_handle();
             std::thread::spawn(move || {
-                let _ = menu_handle.get_item("item_id").set_title("New title");
+                menu_handle.get_item("quit").set_title("New title").unwrap();
             });
 
             // Mutliple Windows
@@ -85,20 +97,34 @@ fn main() {
             )
             .build()?;
 
-
             let handle = app.handle();
+
+            // let value= open_docs(handle.clone());
+
             std::thread::spawn(move || {
-              let local_window_2 = tauri::WindowBuilder::new(
-                &handle,
-                "local",
-                tauri::WindowUrl::App("index.html".into())
-              ).build();
+                let local_window_2 = tauri::WindowBuilder::new(
+                    &handle,
+                    "local",
+                    tauri::WindowUrl::App("index.html".into()),
+                )
+                .build();
             });
 
+            let splashscreen_window = app.get_window("splashscreen").unwrap();
+            let main_window = app.get_window("main").unwrap();
+            // we perform the initialization code on a new task so the app doesn't freeze
+            tauri::async_runtime::spawn(async move {
+                // initialize your app here instead of sleeping :)
+                println!("Initializing...");
+                std::thread::sleep(std::time::Duration::from_secs(2));
+                println!("Done initializing.");
+
+                // After it's done, close the splashscreen and display the main window
+                splashscreen_window.close().unwrap();
+                main_window.show().unwrap();
+            });
 
             let app_ = app.handle();
-
-          
 
             // listen to the `event-name` (emitted on any window)
             app.listen_global("send-message", move |event| {
@@ -129,7 +155,7 @@ fn main() {
             _ => {}
         })
         .system_tray(system_tray)
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![close_splashscreen])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 
@@ -143,8 +169,8 @@ fn main() {
 
     // let local_window =
     //     tauri::WindowBuilder::new(
-    //         &app, 
-    //         "local_outside", 
+    //         &app,
+    //         "local_outside",
     //         tauri::WindowUrl::App("index.html".into())
     //     )
     //         .build()
