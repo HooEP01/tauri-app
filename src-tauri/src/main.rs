@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::Manager;
+use tauri::{Manager, SystemTrayEvent};
 
 // Window Menu
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
@@ -12,7 +12,7 @@ use tauri::WindowBuilder;
 // Multiple Windows
 
 // System Tray
-use tauri::{SystemTray, SystemTrayMenu};
+use tauri::{SystemTray, SystemTrayMenu, SystemTrayMenuItem};
 
 #[derive(Clone, serde::Serialize)]
 struct Payload {
@@ -52,10 +52,22 @@ fn main() {
 
     let window_menu = Menu::new().add_item(CustomMenuItem::new("quit".to_string(), "King"));
 
-    let tray_menu = SystemTrayMenu::new();
+    let tray_quit = CustomMenuItem::new("quit".to_string(), "Quit");
+    let tray_hide = CustomMenuItem::new("hide".to_string(), "Hide");
+    let tray_menu = SystemTrayMenu::new()
+        .add_item(tray_quit)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(tray_hide);
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
     tauri::Builder::default()
+        .on_window_event(|event| match event.event() {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                event.window().hide().unwrap();
+                api.prevent_close();
+            }
+            _ => {}
+        })
         .setup(|app| {
             let window = WindowBuilder::new(
                 app,
@@ -155,9 +167,56 @@ fn main() {
             _ => {}
         })
         .system_tray(system_tray)
+        .on_system_tray_event(|app, event| match event {
+            SystemTrayEvent::LeftClick {
+                position: _,
+                size: _,
+                ..
+            } => {
+                println!("system tray received a left click");
+            }
+            SystemTrayEvent::RightClick {
+                position: _,
+                size: _,
+                ..
+            } => {
+                println!("system tray received a right click");
+            }
+            SystemTrayEvent::DoubleClick {
+                position: _,
+                size: _,
+                ..
+            } => {
+                println!("system tray received a double click");
+            }
+            SystemTrayEvent::MenuItemClick { id, .. } => {
+                let item_handle = app.tray_handle().get_item(&id);
+                match id.as_str() {
+                    "quit" => {
+                        std::process::exit(0);
+                    }
+                    "hide" => {
+                        let window = app.get_window("main").unwrap();
+                        window.hide().unwrap();
+                        item_handle.set_title("Show").unwrap();
+                    }
+                    "show" => {
+                        print!("showing window");
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        })
         .invoke_handler(tauri::generate_handler![close_splashscreen])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|_app_handle, event| match event {
+            tauri::RunEvent::ExitRequested { api, .. } => {
+                api.prevent_exit();
+            }
+            _ => {}
+        });
 
     // let docs_window = tauri::WindowBuilder::new(
     //     &app,
